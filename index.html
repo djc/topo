@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topografische Kennistest</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Topografische Kennistest</h1>
+            <p>Voer stadsnamen in om ze op de kaart te zien</p>
+        </header>
+
+        <main>
+            <section class="input-section">
+                <label for="cityInput">Voer stadsnamen in (één per regel):</label>
+                <textarea
+                    id="cityInput"
+                    placeholder="Parijs&#10;Tokio&#10;New York, USA&#10;Londen&#10;Sydney"
+                    rows="6"></textarea>
+
+                <div class="button-group">
+                    <button id="findCitiesBtn" class="primary">Steden zoeken</button>
+                    <button id="clearBtn" class="secondary">Kaart wissen</button>
+                </div>
+
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showLabelsToggle" checked>
+                        Toon stadsnamen
+                    </label>
+                </div>
+
+                <div id="statusMessage" class="status-message"></div>
+            </section>
+
+            <section class="map-section">
+                <div id="map"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>
+                Kaartgegevens &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> | Geocodering door <a href="https://nominatim.org">Nominatim</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>
