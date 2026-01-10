@@ -78,25 +78,6 @@ textarea:focus {
     gap: 10px;
 }
 
-.toggle-group {
-    margin-top: 10px;
-}
-
-.toggle-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: #2c3e50;
-    cursor: pointer;
-}
-
-.toggle-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
 button {
     padding: 12px 24px;
     font-size: 14px;
@@ -171,6 +152,77 @@ button.secondary:hover:not(:disabled) {
     border: 2px solid #ddd;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom label styling */
+.custom-label {
+    font-size: 12px;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+/* Save section */
+.save-section {
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.save-section h2 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+.save-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.save-controls input[type="text"] {
+    flex: 1;
+    max-width: 400px;
+    padding: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.3s;
+}
+
+.save-controls input[type="text"]:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.save-status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: none;
+}
+
+.save-status.visible {
+    display: block;
+}
+
+.save-status.success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.save-status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
 }
 
 /* Footer */

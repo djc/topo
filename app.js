@@ -2,10 +2,14 @@
 let map = null;
 const cities = [];
 const markers = [];
-let showLabels = true;
+let CustomLabel = null; // Will be defined after Google Maps loads
 
 // DOM elements
-let cityInput, findCitiesBtn, clearBtn, statusMessage, showLabelsToggle;
+let cityInput, findCitiesBtn, clearBtn, statusMessage, listNameInput, saveBtn, saveStatus;
+
+// JSONBin.io configuration
+// Get your API key from https://jsonbin.io (free tier available)
+const JSONBIN_API_KEY = '$2a$10$Xq2vlhYhR49Zy.BjS6i6Ye2jXL6fnkb3n46O9qZHr9nwJteEpGZ.e';
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,43 +18,108 @@ document.addEventListener('DOMContentLoaded', () => {
     findCitiesBtn = document.getElementById('findCitiesBtn');
     clearBtn = document.getElementById('clearBtn');
     statusMessage = document.getElementById('statusMessage');
-    showLabelsToggle = document.getElementById('showLabelsToggle');
+    listNameInput = document.getElementById('listNameInput');
+    saveBtn = document.getElementById('saveBtn');
+    saveStatus = document.getElementById('saveStatus');
 
-    // Initialize map
-    initMap();
-
-    // Add event listeners
-    findCitiesBtn.addEventListener('click', handleFindCities);
-    clearBtn.addEventListener('click', clearMap);
-    showLabelsToggle.addEventListener('change', toggleLabels);
+    // Add save button listener
+    saveBtn.addEventListener('click', handleSaveList);
 });
 
 /**
- * Initialize the Leaflet map
+ * Initialize the Google Map
+ * This function is called by the Google Maps API callback
  */
 function initMap() {
-    // Create map centered on world view
-    map = L.map('map').setView([20, 0], 2);
+    // Define CustomLabel class now that google.maps is available
+    CustomLabel = class extends google.maps.OverlayView {
+        constructor(position, text) {
+            super();
+            this.position = position;
+            this.text = text;
+            this.div = null;
+        }
 
-    // Add CartoDB Positron NoLabels tiles (clean map with borders and rivers, no labels)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        maxZoom: 19,
-        subdomains: 'abcd'
-    }).addTo(map);
+        onAdd() {
+            const div = document.createElement('div');
+            div.className = 'custom-label';
+            div.textContent = this.text;
+            div.style.position = 'absolute';
+            div.style.display = 'none'; // Hidden by default
+
+            this.div = div;
+            const panes = this.getPanes();
+            panes.floatPane.appendChild(div);
+        }
+
+        draw() {
+            const overlayProjection = this.getProjection();
+            const position = overlayProjection.fromLatLngToDivPixel(this.position);
+
+            if (this.div) {
+                this.div.style.left = position.x + 'px';
+                this.div.style.top = (position.y - 40) + 'px'; // Position above marker
+            }
+        }
+
+        onRemove() {
+            if (this.div) {
+                this.div.parentNode.removeChild(this.div);
+                this.div = null;
+            }
+        }
+
+        show() {
+            if (this.div) {
+                this.div.style.display = 'block';
+            }
+        }
+
+        hide() {
+            if (this.div) {
+                this.div.style.display = 'none';
+            }
+        }
+
+        isVisible() {
+            return this.div && this.div.style.display === 'block';
+        }
+    };
+
+    // Create map centered on world view
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 20, lng: 0 },
+        zoom: 2,
+        mapTypeId: 'terrain',
+        styles: [
+            {
+                featureType: 'all',
+                elementType: 'labels',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'road',
+                elementType: 'geometry',
+                stylers: [{ visibility: 'off' }]
+            }
+        ]
+    });
+
+    // Add event listeners after map is initialized
+    findCitiesBtn.addEventListener('click', handleFindCities);
+    clearBtn.addEventListener('click', clearMap);
 }
 
 /**
- * Geocode a single city using Nominatim API
+ * Geocode a single city using Google Geocoding API
  * @param {string} cityName - Name of the city to geocode
  * @returns {Promise<Object>} Result object with city data or error
  */
 async function geocodeCity(cityName) {
-    const baseUrl = 'https://nominatim.openstreetmap.org/search';
+    const baseUrl = 'https://maps.googleapis.com/maps/api/geocode/json';
     const params = new URLSearchParams({
-        q: cityName,
-        format: 'json',
-        limit: 1
+        address: cityName,
+        key: 'AIzaSyBm1PAv-S4fV3gFGaudPEr2tPuCIGx8YVo'
     });
 
     try {
@@ -59,22 +128,10 @@ async function geocodeCity(cityName) {
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(`${baseUrl}?${params}`, {
-            headers: {
-                'User-Agent': 'TopographicTestingApp/1.0'
-            },
             signal: controller.signal
         });
 
         clearTimeout(timeoutId);
-
-        // Check for rate limiting
-        if (response.status === 429) {
-            return {
-                name: cityName,
-                found: false,
-                error: 'Limiet bereikt. Wacht even voordat u het opnieuw probeert.'
-            };
-        }
 
         if (!response.ok) {
             return {
@@ -86,8 +143,8 @@ async function geocodeCity(cityName) {
 
         const data = await response.json();
 
-        // Check if city was found
-        if (data.length === 0) {
+        // Check for API errors
+        if (data.status === 'ZERO_RESULTS') {
             return {
                 name: cityName,
                 found: false,
@@ -95,12 +152,23 @@ async function geocodeCity(cityName) {
             };
         }
 
+        if (data.status !== 'OK') {
+            return {
+                name: cityName,
+                found: false,
+                error: `API-fout: ${data.status}`
+            };
+        }
+
+        // Get first result
+        const result = data.results[0];
+
         // Return successful result
         return {
             name: cityName,
-            displayName: data[0].display_name,
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon),
+            displayName: result.formatted_address,
+            lat: result.geometry.location.lat,
+            lon: result.geometry.location.lng,
             found: true
         };
 
@@ -121,7 +189,7 @@ async function geocodeCity(cityName) {
 }
 
 /**
- * Geocode multiple cities with rate limiting
+ * Geocode multiple cities
  * @param {Array<string>} cityNames - Array of city names to geocode
  * @returns {Promise<Array>} Array of result objects
  */
@@ -139,11 +207,6 @@ async function geocodeCities(cityNames) {
         if (result.found) {
             addMarkerToMap(result);
         }
-
-        // Wait 1 second between requests (Nominatim rate limit)
-        if (i < cityNames.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
     }
 
     return results;
@@ -155,38 +218,39 @@ async function geocodeCities(cityNames) {
  */
 function addMarkerToMap(city) {
     // Create marker
-    const marker = L.marker([city.lat, city.lon]).addTo(map);
+    const marker = new google.maps.Marker({
+        position: { lat: city.lat, lng: city.lon },
+        map: map,
+        title: city.name
+    });
 
-    // Add popup with city info
-    marker.bindPopup(`
-        <strong>${city.name}</strong><br>
-        <small>${city.displayName}</small><br>
-        <small>Lat: ${city.lat.toFixed(4)}, Lon: ${city.lon.toFixed(4)}</small>
-    `);
+    // Create custom label overlay
+    const label = new CustomLabel(
+        new google.maps.LatLng(city.lat, city.lon),
+        city.name
+    );
+    label.setMap(map);
 
-    // Open popup immediately if labels are shown
-    if (showLabels) {
-        marker.openPopup();
-    }
-
-    // Store marker reference
-    city.marker = marker;
-    markers.push(marker);
-}
-
-/**
- * Toggle display of city name labels
- */
-function toggleLabels() {
-    showLabels = showLabelsToggle.checked;
-
-    markers.forEach(marker => {
-        if (showLabels) {
-            marker.openPopup();
+    // Add click listener to toggle label
+    marker.addListener('click', () => {
+        // Hide all other labels first
+        cities.forEach(c => {
+            if (c.label && c.label !== label) {
+                c.label.hide();
+            }
+        });
+        // Toggle this label
+        if (label.isVisible()) {
+            label.hide();
         } else {
-            marker.closePopup();
+            label.show();
         }
     });
+
+    // Store marker and label references
+    city.marker = marker;
+    city.label = label;
+    markers.push(marker);
 }
 
 /**
@@ -200,11 +264,17 @@ function fitMapToMarkers() {
     if (markers.length === 1) {
         // Single marker: center and zoom
         const city = cities.find(c => c.found);
-        map.setView([city.lat, city.lon], 10);
+        map.setCenter({ lat: city.lat, lng: city.lon });
+        map.setZoom(10);
     } else {
         // Multiple markers: fit bounds
-        const group = L.featureGroup(markers);
-        map.fitBounds(group.getBounds().pad(0.1));
+        const bounds = new google.maps.LatLngBounds();
+        cities.forEach(city => {
+            if (city.found) {
+                bounds.extend({ lat: city.lat, lng: city.lon });
+            }
+        });
+        map.fitBounds(bounds);
     }
 }
 
@@ -213,12 +283,20 @@ function fitMapToMarkers() {
  */
 function clearMap() {
     // Remove all markers from map
-    markers.forEach(marker => map.removeLayer(marker));
+    markers.forEach(marker => marker.setMap(null));
     markers.length = 0;
+
+    // Remove all custom labels
+    cities.forEach(city => {
+        if (city.label) {
+            city.label.setMap(null);
+        }
+    });
     cities.length = 0;
 
     // Reset map view
-    map.setView([20, 0], 2);
+    map.setCenter({ lat: 20, lng: 0 });
+    map.setZoom(2);
 
     // Clear UI
     hideStatus();
@@ -308,5 +386,113 @@ async function handleFindCities() {
         // Re-enable button
         findCitiesBtn.disabled = false;
         findCitiesBtn.textContent = 'Steden zoeken';
+    }
+}
+
+/**
+ * Show a save status message
+ * @param {string} message - Message to display
+ * @param {string} type - Type of message (success, error)
+ */
+function showSaveStatus(message, type) {
+    saveStatus.textContent = message;
+    saveStatus.className = `save-status visible ${type}`;
+}
+
+/**
+ * Hide the save status message
+ */
+function hideSaveStatus() {
+    saveStatus.className = 'save-status';
+    saveStatus.textContent = '';
+}
+
+/**
+ * Handle saving the city list to JSONBin.io
+ */
+async function handleSaveList() {
+    const listName = listNameInput.value.trim();
+
+    // Validate list name
+    if (!listName) {
+        showSaveStatus('Voer een naam voor de lijst in', 'error');
+        setTimeout(hideSaveStatus, 3000);
+        return;
+    }
+
+    // Check if API key is configured
+    if (JSONBIN_API_KEY === 'YOUR_JSONBIN_API_KEY') {
+        showSaveStatus('JSONBin.io API key niet geconfigureerd. Zie documentatie.', 'error');
+        setTimeout(hideSaveStatus, 5000);
+        return;
+    }
+
+    // Get successfully geocoded cities
+    const successfulCities = cities.filter(city => city.found);
+
+    if (successfulCities.length === 0) {
+        showSaveStatus('Geen steden om op te slaan. Geocodeer eerst enkele steden.', 'error');
+        setTimeout(hideSaveStatus, 3000);
+        return;
+    }
+
+    // Prepare data to save
+    const listData = {
+        name: listName,
+        cities: successfulCities.map(city => ({
+            name: city.name,
+            displayName: city.displayName,
+            lat: city.lat,
+            lon: city.lon
+        })),
+        savedAt: new Date().toISOString(),
+        count: successfulCities.length
+    };
+
+    // Disable save button
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Opslaan...';
+
+    try {
+        // Create a new bin on JSONBin.io in the Topo collection
+        const response = await fetch('https://api.jsonbin.io/v3/b', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Access-Key': JSONBIN_API_KEY,
+                'X-Bin-Name': listName,
+                'X-Collection-Id': '69628cdb43b1c97be9272866'
+            },
+            body: JSON.stringify(listData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP-fout ${response.status}`);
+        }
+
+        const result = await response.json();
+        const binId = result.metadata.id;
+
+        showSaveStatus(
+            `Lijst "${listName}" succesvol opgeslagen met ${successfulCities.length} steden (ID: ${binId})`,
+            'success'
+        );
+
+        // Log the bin ID for reference
+        console.log('Saved to JSONBin.io with ID:', binId);
+
+        setTimeout(hideSaveStatus, 5000);
+
+    } catch (error) {
+        showSaveStatus(
+            `Fout bij opslaan: ${error.message}`,
+            'error'
+        );
+        setTimeout(hideSaveStatus, 5000);
+    } finally {
+        // Re-enable button
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Opslaan';
     }
 }
