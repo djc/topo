@@ -321,8 +321,7 @@ function addMarkerToMap(city) {
     // Create marker
     const marker = new google.maps.Marker({
         position: { lat: city.lat, lng: city.lon },
-        map: map,
-        title: city.name
+        map: map
     });
 
     // Create custom label overlay
