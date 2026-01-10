@@ -5,7 +5,7 @@ const markers = [];
 let CustomLabel = null; // Will be defined after Google Maps loads
 
 // DOM elements
-let cityInput, findCitiesBtn, clearBtn, statusMessage, listNameInput, saveBtn, saveStatus;
+let cityInput, findCitiesBtn, clearBtn, statusMessage, listNameInput, saveBtn, saveStatus, toggleControlsBtn, controlsContent;
 
 // JSONBin.io configuration
 // Get your API key from https://jsonbin.io (free tier available)
@@ -21,10 +21,108 @@ document.addEventListener('DOMContentLoaded', () => {
     listNameInput = document.getElementById('listNameInput');
     saveBtn = document.getElementById('saveBtn');
     saveStatus = document.getElementById('saveStatus');
+    toggleControlsBtn = document.getElementById('toggleControlsBtn');
+    controlsContent = document.getElementById('controlsContent');
 
     // Add save button listener
     saveBtn.addEventListener('click', handleSaveList);
+
+    // Add toggle button listener
+    toggleControlsBtn.addEventListener('click', toggleControls);
 });
+
+/**
+ * Check for query string parameter to load a list
+ */
+async function checkForListQuery() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const binId = urlParams.get('lijst');
+
+    if (binId) {
+        await loadListById(binId);
+    }
+}
+
+/**
+ * Load a saved list by Bin ID from JSONBin.io
+ * @param {string} binId - Bin ID of the list to load
+ */
+async function loadListById(binId) {
+    if (JSONBIN_API_KEY === 'YOUR_JSONBIN_API_KEY') {
+        showStatus('JSONBin.io API key niet geconfigureerd.', 'error');
+        setTimeout(hideStatus, 3000);
+        return;
+    }
+
+    showStatus(`Lijst laden...`, 'loading');
+
+    try {
+        // Fetch the bin data directly by ID
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+            headers: {
+                'X-Access-Key': JSONBIN_API_KEY
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Lijst niet gevonden.');
+            }
+            throw new Error(`HTTP-fout ${response.status}`);
+        }
+
+        const binData = await response.json();
+        const listData = binData.record;
+
+        // Clear existing cities
+        clearMap();
+
+        // Add cities to the map
+        if (listData.cities && Array.isArray(listData.cities)) {
+            listData.cities.forEach(city => {
+                const cityWithMarker = {
+                    name: city.name,
+                    displayName: city.displayName,
+                    lat: city.lat,
+                    lon: city.lon,
+                    found: true
+                };
+                cities.push(cityWithMarker);
+                addMarkerToMap(cityWithMarker);
+            });
+
+            // Fit map to show all markers
+            fitMapToMarkers();
+
+            showStatus(
+                `Lijst "${listData.name || 'Onbekend'}" geladen met ${listData.cities.length} steden`,
+                'success'
+            );
+
+            setTimeout(hideStatus, 5000);
+        } else {
+            throw new Error('Ongeldige lijst data.');
+        }
+
+    } catch (error) {
+        showStatus(`Fout bij laden: ${error.message}`, 'error');
+        setTimeout(hideStatus, 5000);
+    }
+}
+
+/**
+ * Toggle the controls section (expand/collapse)
+ */
+function toggleControls() {
+    controlsContent.classList.toggle('collapsed');
+
+    // Update button text
+    if (controlsContent.classList.contains('collapsed')) {
+        toggleControlsBtn.innerHTML = '<span>☰</span> Steden beheren';
+    } else {
+        toggleControlsBtn.innerHTML = '<span>✕</span> Sluiten';
+    }
+}
 
 /**
  * Initialize the Google Map
@@ -108,6 +206,9 @@ function initMap() {
     // Add event listeners after map is initialized
     findCitiesBtn.addEventListener('click', handleFindCities);
     clearBtn.addEventListener('click', clearMap);
+
+    // Check for query string parameter to load a list (after map is ready)
+    checkForListQuery();
 }
 
 /**
@@ -474,15 +575,20 @@ async function handleSaveList() {
         const result = await response.json();
         const binId = result.metadata.id;
 
+        // Construct shareable URL
+        const baseUrl = window.location.origin + window.location.pathname;
+        const shareUrl = `${baseUrl}?lijst=${binId}`;
+
         showSaveStatus(
-            `Lijst "${listName}" succesvol opgeslagen met ${successfulCities.length} steden (ID: ${binId})`,
+            `Lijst "${listName}" succesvol opgeslagen met ${successfulCities.length} steden. URL: ${shareUrl}`,
             'success'
         );
 
         // Log the bin ID for reference
         console.log('Saved to JSONBin.io with ID:', binId);
+        console.log('Share URL:', shareUrl);
 
-        setTimeout(hideSaveStatus, 5000);
+        setTimeout(hideSaveStatus, 10000);
 
     } catch (error) {
         showSaveStatus(

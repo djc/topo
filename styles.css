@@ -41,7 +41,49 @@ header p {
 main {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 0;
+}
+
+/* Controls section */
+.controls-section {
+    margin-top: 20px;
+}
+
+.toggle-btn {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.toggle-btn:hover {
+    background-color: #0056b3;
+}
+
+.toggle-btn span {
+    font-size: 20px;
+}
+
+.controls-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    padding: 20px 0;
+}
+
+.controls-content.collapsed {
+    max-height: 0;
+    padding: 0;
 }
 
 /* Input section */
@@ -49,6 +91,9 @@ main {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .input-section label {
@@ -168,15 +213,12 @@ button.secondary:hover:not(:disabled) {
 
 /* Save section */
 .save-section {
-    margin-top: 30px;
-    padding-top: 30px;
-    border-top: 2px solid #e0e0e0;
 }
 
-.save-section h2 {
+.save-section h3 {
     color: #2c3e50;
     margin-bottom: 15px;
-    font-size: 20px;
+    font-size: 18px;
 }
 
 .save-controls {
@@ -258,7 +300,15 @@ footer a:hover {
         flex-direction: column;
     }
 
-    button {
+    button:not(.toggle-btn) {
         width: 100%;
+    }
+
+    .save-controls {
+        flex-direction: column;
+    }
+
+    .save-controls input[type="text"] {
+        max-width: 100%;
     }
 }
