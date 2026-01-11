@@ -6,11 +6,14 @@ let CustomLabel = null; // Will be defined after Google Maps loads
 
 // DOM elements
 let cityInput, findCitiesBtn, clearBtn, statusMessage, listNameInput, saveBtn, saveStatus, toggleControlsBtn, controlsContent;
-let toggleGameBtn, gameContent, nextBtn, gameStatus, answerButtons;
+let toggleGameBtn, gameContent, nextBtn, gameStatus, gameStats, answerButtons;
 
 // Game state
 let gameMode = false;
 let currentQuestion = null;
+let totalQuestions = 0;
+let correctAnswers = 0;
+let currentStreak = 0;
 
 // Minecraft monsters for game mode
 const monsters = [
@@ -56,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gameContent = document.getElementById('gameContent');
     nextBtn = document.getElementById('nextBtn');
     gameStatus = document.getElementById('gameStatus');
+    gameStats = document.getElementById('gameStats');
     answerButtons = document.getElementById('answerButtons');
 
     // Add save button listener
@@ -184,7 +188,23 @@ function toggleGame() {
     } else {
         toggleGameBtn.innerHTML = '<span>✕</span> Sluiten';
         gameMode = true;
+        // Reset stats when opening game mode
+        totalQuestions = 0;
+        correctAnswers = 0;
+        currentStreak = 0;
+        updateGameStats();
     }
+}
+
+/**
+ * Update the game statistics display
+ */
+function updateGameStats() {
+    gameStats.innerHTML = `
+        <span>Vragen: ${totalQuestions}</span>
+        <span>Correct: ${correctAnswers}</span>
+        <span>Achter elkaar: ${currentStreak}</span>
+    `;
 }
 
 /**
@@ -270,14 +290,21 @@ function handleAnswer(selectedPlace, selectedButton) {
         }
     });
 
-    // Show status
+    // Update statistics
+    totalQuestions++;
     if (selectedPlace === currentQuestion.correctPlace) {
+        correctAnswers++;
+        currentStreak++;
         gameStatus.textContent = '✅ Correct!';
         gameStatus.style.color = '#28a745';
     } else {
+        currentStreak = 0;
         gameStatus.textContent = `❌ Fout! Het juiste antwoord was ${currentQuestion.correctPlace.name}`;
         gameStatus.style.color = '#dc3545';
     }
+
+    // Update stats display
+    updateGameStats();
 
     // Re-enable Next button after answer is selected
     nextBtn.disabled = false;
