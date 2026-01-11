@@ -193,6 +193,12 @@ function toggleGame() {
         correctAnswers = 0;
         currentStreak = 0;
         updateGameStats();
+
+        // Initialize first question if places are loaded
+        const foundPlaces = places.filter(place => place.found);
+        if (foundPlaces.length >= 4) {
+            nextQuestion();
+        }
     }
 }
 
