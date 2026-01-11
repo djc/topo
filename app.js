@@ -220,16 +220,26 @@ function nextQuestion() {
     const foundPlaces = places.filter(place => place.found);
 
     if (foundPlaces.length < 4) {
-        gameStatus.textContent = 'Je hebt minimaal 4 steden nodig om te spelen';
+        gameStatus.textContent = 'Je hebt minimaal 4 locaties nodig om te spelen';
         gameStatus.style.color = '#dc3545';
         return;
     }
 
-    // Pick a random city as the correct answer
+    // Pick a random place as the correct answer
     const correctPlace = foundPlaces[Math.floor(Math.random() * foundPlaces.length)];
 
-    // Pick 3 other random places
-    const otherPlaces = foundPlaces.filter(place => place !== correctPlace);
+    // Pick 3 other random places of the same type
+    const otherPlaces = foundPlaces.filter(place =>
+        place !== correctPlace && place.placeType === correctPlace.placeType
+    );
+
+    // Check if we have enough places of the same type
+    if (otherPlaces.length < 3) {
+        gameStatus.textContent = `Je hebt minimaal 4 ${correctPlace.placeType === 'river' ? 'rivieren' : 'steden'} nodig voor deze vraag`;
+        gameStatus.style.color = '#dc3545';
+        return;
+    }
+
     const shuffled = otherPlaces.sort(() => 0.5 - Math.random());
     const wrongPlaces = shuffled.slice(0, 3);
 
