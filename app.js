@@ -258,8 +258,10 @@ function handleAnswer(selectedPlace, selectedButton) {
 
         if (button.textContent === currentQuestion.correctPlace.name) {
             button.classList.add('correct');
-            // Change to dead monster image
-            button.style.backgroundImage = `url('${button.dataset.monsterDead}')`;
+            // Only change to dead monster if the answer was correct
+            if (selectedPlace === currentQuestion.correctPlace) {
+                button.style.backgroundImage = `url('${button.dataset.monsterDead}')`;
+            }
         } else {
             button.classList.add('incorrect');
         }
