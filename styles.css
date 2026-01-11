@@ -117,7 +117,6 @@ main {
 .answer-btn:hover:not(:disabled) {
     border-color: #007bff;
     background-color: rgba(240, 248, 255, 0.95);
-    transform: scale(1.02);
 }
 
 .answer-btn:disabled {
@@ -139,6 +138,7 @@ main {
 /* Controls section */
 .controls-section {
     margin-top: 20px;
+    margin-bottom: 30px;
     padding-left: 20px;
     padding-right: 20px;
 }

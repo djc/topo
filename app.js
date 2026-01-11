@@ -202,7 +202,7 @@ function toggleGame() {
 function updateGameStats() {
     gameStats.innerHTML = `
         <span>Vragen: ${totalQuestions}</span>
-        <span>Correct: ${correctAnswers}</span>
+        <span>Goed: ${correctAnswers}</span>
         <span>Achter elkaar: ${currentStreak}</span>
     `;
 }
