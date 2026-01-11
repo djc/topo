@@ -223,6 +223,9 @@ function nextQuestion() {
     // Clear status
     gameStatus.textContent = '';
 
+    // Disable Next button until answer is selected
+    nextBtn.disabled = true;
+
     // Create answer buttons with random monster images
     answerButtons.innerHTML = '';
     const shuffledMonsters = [...monsters].sort(() => 0.5 - Math.random());
@@ -275,6 +278,9 @@ function handleAnswer(selectedPlace, selectedButton) {
         gameStatus.textContent = `❌ Fout! Het juiste antwoord was ${currentQuestion.correctPlace.name}`;
         gameStatus.style.color = '#dc3545';
     }
+
+    // Re-enable Next button after answer is selected
+    nextBtn.disabled = false;
 }
 
 /**
