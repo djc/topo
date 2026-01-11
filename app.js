@@ -1,6 +1,6 @@
 // Global state
 let map = null;
-const cities = [];
+const places = [];
 const markers = [];
 let CustomLabel = null; // Will be defined after Google Maps loads
 
@@ -112,28 +112,30 @@ async function loadListById(binId) {
         const binData = await response.json();
         const listData = binData.record;
 
-        // Clear existing cities
+        // Clear existing places
         clearMap();
 
-        // Add cities to the map
-        if (listData.cities && Array.isArray(listData.cities)) {
-            listData.cities.forEach(city => {
-                const cityWithMarker = {
-                    name: city.name,
-                    displayName: city.displayName,
-                    lat: city.lat,
-                    lon: city.lon,
+        // Add places to the map (support both old 'cities' and new 'places' format)
+        const placesData = listData.places || listData.cities || [];
+        if (Array.isArray(placesData) && placesData.length > 0) {
+            placesData.forEach(item => {
+                const placeWithMarker = {
+                    name: item.name,
+                    displayName: item.displayName,
+                    lat: item.lat,
+                    lon: item.lon,
+                    placeType: item.placeType || 'city', // Default to city for old data
                     found: true
                 };
-                cities.push(cityWithMarker);
-                addMarkerToMap(cityWithMarker);
+                places.push(placeWithMarker);
+                addMarkerToMap(placeWithMarker);
             });
 
             // Fit map to show all markers
             fitMapToMarkers();
 
             showStatus(
-                `Lijst "${listData.name || 'Onbekend'}" geladen met ${listData.cities.length} steden`,
+                `Lijst "${listData.name || 'Onbekend'}" geladen met ${placesData.length} locaties`,
                 'success'
             );
 
@@ -184,34 +186,34 @@ function toggleGame() {
  * Start the next question in game mode
  */
 function nextQuestion() {
-    const foundCities = cities.filter(city => city.found);
+    const foundPlaces = places.filter(place => place.found);
 
-    if (foundCities.length < 4) {
+    if (foundPlaces.length < 4) {
         gameStatus.textContent = 'Je hebt minimaal 4 steden nodig om te spelen';
         gameStatus.style.color = '#dc3545';
         return;
     }
 
     // Pick a random city as the correct answer
-    const correctCity = foundCities[Math.floor(Math.random() * foundCities.length)];
+    const correctPlace = foundPlaces[Math.floor(Math.random() * foundPlaces.length)];
 
-    // Pick 3 other random cities
-    const otherCities = foundCities.filter(city => city !== correctCity);
-    const shuffled = otherCities.sort(() => 0.5 - Math.random());
-    const wrongCities = shuffled.slice(0, 3);
+    // Pick 3 other random places
+    const otherPlaces = foundPlaces.filter(place => place !== correctPlace);
+    const shuffled = otherPlaces.sort(() => 0.5 - Math.random());
+    const wrongPlaces = shuffled.slice(0, 3);
 
     // Combine and shuffle all 4 options
-    const allOptions = [correctCity, ...wrongCities].sort(() => 0.5 - Math.random());
+    const allOptions = [correctPlace, ...wrongPlaces].sort(() => 0.5 - Math.random());
 
     // Store current question
     currentQuestion = {
-        correctCity: correctCity,
+        correctPlace: correctPlace,
         options: allOptions,
         answered: false
     };
 
-    // Show only the correct city's marker
-    showOnlyMarker(correctCity);
+    // Show only the correct place's marker
+    showOnlyMarker(correctPlace);
 
     // Clear status
     gameStatus.textContent = '';
@@ -220,10 +222,10 @@ function nextQuestion() {
     answerButtons.innerHTML = '';
     const shuffledMonsters = [...monsters].sort(() => 0.5 - Math.random());
 
-    allOptions.forEach((city, index) => {
+    allOptions.forEach((place, index) => {
         const button = document.createElement('button');
         button.className = 'answer-btn';
-        button.textContent = city.name;
+        button.textContent = place.name;
 
         // Assign a monster image
         const monster = shuffledMonsters[index % monsters.length];
@@ -231,7 +233,7 @@ function nextQuestion() {
         button.dataset.monsterAlive = monster.alive;
         button.dataset.monsterDead = monster.dead;
 
-        button.addEventListener('click', () => handleAnswer(city, button));
+        button.addEventListener('click', () => handleAnswer(place, button));
         answerButtons.appendChild(button);
     });
 }
@@ -239,7 +241,7 @@ function nextQuestion() {
 /**
  * Handle answer selection
  */
-function handleAnswer(selectedCity, selectedButton) {
+function handleAnswer(selectedPlace, selectedButton) {
     if (currentQuestion.answered) return;
 
     currentQuestion.answered = true;
@@ -249,7 +251,7 @@ function handleAnswer(selectedCity, selectedButton) {
     buttons.forEach(button => {
         button.disabled = true;
 
-        if (button.textContent === currentQuestion.correctCity.name) {
+        if (button.textContent === currentQuestion.correctPlace.name) {
             button.classList.add('correct');
             // Change to dead monster image
             button.style.backgroundImage = `url('${button.dataset.monsterDead}')`;
@@ -259,11 +261,11 @@ function handleAnswer(selectedCity, selectedButton) {
     });
 
     // Show status
-    if (selectedCity === currentQuestion.correctCity) {
+    if (selectedPlace === currentQuestion.correctPlace) {
         gameStatus.textContent = '✅ Correct!';
         gameStatus.style.color = '#28a745';
     } else {
-        gameStatus.textContent = `❌ Fout! Het juiste antwoord was ${currentQuestion.correctCity.name}`;
+        gameStatus.textContent = `❌ Fout! Het juiste antwoord was ${currentQuestion.correctPlace.name}`;
         gameStatus.style.color = '#dc3545';
     }
 }
@@ -271,13 +273,13 @@ function handleAnswer(selectedCity, selectedButton) {
 /**
  * Show only a specific marker on the map
  */
-function showOnlyMarker(city) {
-    cities.forEach(c => {
-        if (c.marker) {
-            c.marker.setVisible(c === city);
+function showOnlyMarker(place) {
+    places.forEach(p => {
+        if (p.marker) {
+            p.marker.setVisible(p === place);
         }
-        if (c.label) {
-            c.label.hide();
+        if (p.label) {
+            p.label.hide();
         }
     });
 }
@@ -286,9 +288,9 @@ function showOnlyMarker(city) {
  * Show all markers on the map
  */
 function showAllMarkers() {
-    cities.forEach(c => {
-        if (c.marker) {
-            c.marker.setVisible(true);
+    places.forEach(p => {
+        if (p.marker) {
+            p.marker.setVisible(true);
         }
     });
 }
@@ -433,12 +435,31 @@ async function geocodeCity(cityName) {
         // Get first result
         const result = data.results[0];
 
+        // Determine place type from types array
+        const types = result.types || [];
+        let placeType = 'city'; // default to city
+
+        // Check if it's a river or natural water feature
+        if (types.includes('natural_feature') ||
+            types.includes('waterway') ||
+            types.some(t => t.includes('river'))) {
+            placeType = 'river';
+        }
+        // Check if it's a city/town
+        else if (types.includes('locality') ||
+                 types.includes('sublocality') ||
+                 types.includes('administrative_area_level_3')) {
+            placeType = 'city';
+        }
+
         // Return successful result
         return {
             name: cityName,
             displayName: result.formatted_address,
             lat: result.geometry.location.lat,
             lon: result.geometry.location.lng,
+            placeType: placeType,
+            types: types,
             found: true
         };
 
@@ -483,29 +504,35 @@ async function geocodeCities(cityNames) {
 }
 
 /**
- * Add a marker to the map for a geocoded city
- * @param {Object} city - City object with lat, lon, name, displayName
+ * Add a marker to the map for a geocoded place
+ * @param {Object} place - Place object with lat, lon, name, displayName, placeType
  */
-function addMarkerToMap(city) {
-    // Create marker
+function addMarkerToMap(place) {
+    // Determine marker color based on place type
+    const markerColor = place.placeType === 'river'
+        ? 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        : 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
+
+    // Create marker using the old API to avoid mapId requirement
     const marker = new google.maps.Marker({
-        position: { lat: city.lat, lng: city.lon },
-        map: map
+        position: { lat: place.lat, lng: place.lon },
+        map: map,
+        icon: markerColor
     });
 
     // Create custom label overlay
     const label = new CustomLabel(
-        new google.maps.LatLng(city.lat, city.lon),
-        city.name
+        new google.maps.LatLng(place.lat, place.lon),
+        place.name
     );
     label.setMap(map);
 
     // Add click listener to toggle label
     marker.addListener('click', () => {
         // Hide all other labels first
-        cities.forEach(c => {
-            if (c.label && c.label !== label) {
-                c.label.hide();
+        places.forEach(p => {
+            if (p.label && p.label !== label) {
+                p.label.hide();
             }
         });
         // Toggle this label
@@ -517,8 +544,8 @@ function addMarkerToMap(city) {
     });
 
     // Store marker and label references
-    city.marker = marker;
-    city.label = label;
+    place.marker = marker;
+    place.label = label;
     markers.push(marker);
 }
 
@@ -532,15 +559,15 @@ function fitMapToMarkers() {
 
     if (markers.length === 1) {
         // Single marker: center and zoom
-        const city = cities.find(c => c.found);
-        map.setCenter({ lat: city.lat, lng: city.lon });
+        const place = places.find(p => p.found);
+        map.setCenter({ lat: place.lat, lng: place.lon });
         map.setZoom(10);
     } else {
         // Multiple markers: fit bounds
         const bounds = new google.maps.LatLngBounds();
-        cities.forEach(city => {
-            if (city.found) {
-                bounds.extend({ lat: city.lat, lng: city.lon });
+        places.forEach(place => {
+            if (place.found) {
+                bounds.extend({ lat: place.lat, lng: place.lon });
             }
         });
         map.fitBounds(bounds);
@@ -556,12 +583,12 @@ function clearMap() {
     markers.length = 0;
 
     // Remove all custom labels
-    cities.forEach(city => {
-        if (city.label) {
-            city.label.setMap(null);
+    places.forEach(place => {
+        if (place.label) {
+            place.label.setMap(null);
         }
     });
-    cities.length = 0;
+    places.length = 0;
 
     // Reset map view
     map.setCenter({ lat: 20, lng: 0 });
@@ -630,11 +657,11 @@ async function handleFindCities() {
     clearMap();
 
     try {
-        // Geocode all cities
+        // Geocode all places
         const results = await geocodeCities(cityNames);
 
         // Store results
-        cities.push(...results);
+        places.push(...results);
 
         // Fit map to markers
         fitMapToMarkers();
@@ -643,7 +670,7 @@ async function handleFindCities() {
         const foundCount = results.filter(r => r.found).length;
         const totalCount = results.length;
         showStatus(
-            `Geocodering voltooid: ${foundCount} van ${totalCount} steden gevonden`,
+            `Geocodering voltooid: ${foundCount} van ${totalCount} locaties gevonden`,
             foundCount === totalCount ? 'success' : 'error'
         );
 
@@ -696,11 +723,11 @@ async function handleSaveList() {
         return;
     }
 
-    // Get successfully geocoded cities
-    const successfulCities = cities.filter(city => city.found);
+    // Get successfully geocoded places
+    const successfulPlaces = places.filter(place => place.found);
 
-    if (successfulCities.length === 0) {
-        showSaveStatus('Geen steden om op te slaan. Geocodeer eerst enkele steden.', 'error');
+    if (successfulPlaces.length === 0) {
+        showSaveStatus('Geen locaties om op te slaan. Geocodeer eerst enkele locaties.', 'error');
         setTimeout(hideSaveStatus, 3000);
         return;
     }
@@ -708,14 +735,15 @@ async function handleSaveList() {
     // Prepare data to save
     const listData = {
         name: listName,
-        cities: successfulCities.map(city => ({
-            name: city.name,
-            displayName: city.displayName,
-            lat: city.lat,
-            lon: city.lon
+        places: successfulPlaces.map(place => ({
+            name: place.name,
+            displayName: place.displayName,
+            lat: place.lat,
+            lon: place.lon,
+            placeType: place.placeType
         })),
         savedAt: new Date().toISOString(),
-        count: successfulCities.length
+        count: successfulPlaces.length
     };
 
     // Disable save button
@@ -748,7 +776,7 @@ async function handleSaveList() {
         const shareUrl = `${baseUrl}?lijst=${binId}`;
 
         showSaveStatus(
-            `Lijst "${listName}" succesvol opgeslagen met ${successfulCities.length} steden. URL: ${shareUrl}`,
+            `Lijst "${listName}" succesvol opgeslagen met ${successfulPlaces.length} locaties. URL: ${shareUrl}`,
             'success'
         );
 
