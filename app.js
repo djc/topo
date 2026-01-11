@@ -134,6 +134,11 @@ async function loadListById(binId) {
             // Fit map to show all markers
             fitMapToMarkers();
 
+            // Populate the textarea with place names
+            if (cityInput) {
+                cityInput.value = placesData.map(item => item.name).join('\n');
+            }
+
             showStatus(
                 `Lijst "${listData.name || 'Onbekend'}" geladen met ${placesData.length} locaties`,
                 'success'
