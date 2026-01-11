@@ -6,6 +6,35 @@ let CustomLabel = null; // Will be defined after Google Maps loads
 
 // DOM elements
 let cityInput, findCitiesBtn, clearBtn, statusMessage, listNameInput, saveBtn, saveStatus, toggleControlsBtn, controlsContent;
+let toggleGameBtn, gameContent, nextBtn, gameStatus, answerButtons;
+
+// Game state
+let gameMode = false;
+let currentQuestion = null;
+
+// Minecraft monsters for game mode
+const monsters = [
+    {
+        name: 'red',
+        alive: 'assets/red-alive.png',
+        dead: 'assets/red-dead.png'
+    },
+    {
+        name: 'green',
+        alive: 'assets/green-alive.png',
+        dead: 'assets/green-dead.png'
+    },
+    {
+        name: 'purple',
+        alive: 'assets/purple-alive.png',
+        dead: 'assets/purple-dead.png'
+    },
+    {
+        name: 'blue',
+        alive: 'assets/blue-alive.png',
+        dead: 'assets/blue-dead.png'
+    }
+];
 
 // JSONBin.io configuration
 // Get your API key from https://jsonbin.io (free tier available)
@@ -23,12 +52,21 @@ document.addEventListener('DOMContentLoaded', () => {
     saveStatus = document.getElementById('saveStatus');
     toggleControlsBtn = document.getElementById('toggleControlsBtn');
     controlsContent = document.getElementById('controlsContent');
+    toggleGameBtn = document.getElementById('toggleGameBtn');
+    gameContent = document.getElementById('gameContent');
+    nextBtn = document.getElementById('nextBtn');
+    gameStatus = document.getElementById('gameStatus');
+    answerButtons = document.getElementById('answerButtons');
 
     // Add save button listener
     saveBtn.addEventListener('click', handleSaveList);
 
-    // Add toggle button listener
+    // Add toggle button listeners
     toggleControlsBtn.addEventListener('click', toggleControls);
+    toggleGameBtn.addEventListener('click', toggleGame);
+
+    // Add game button listener
+    nextBtn.addEventListener('click', nextQuestion);
 });
 
 /**
@@ -122,6 +160,137 @@ function toggleControls() {
     } else {
         toggleControlsBtn.innerHTML = '<span>✕</span> Sluiten';
     }
+}
+
+/**
+ * Toggle the game section (expand/collapse)
+ */
+function toggleGame() {
+    gameContent.classList.toggle('collapsed');
+
+    // Update button text
+    if (gameContent.classList.contains('collapsed')) {
+        toggleGameBtn.innerHTML = '<span>🎮</span> Game mode';
+        gameMode = false;
+        // Show all markers when exiting game mode
+        showAllMarkers();
+    } else {
+        toggleGameBtn.innerHTML = '<span>✕</span> Sluiten';
+        gameMode = true;
+    }
+}
+
+/**
+ * Start the next question in game mode
+ */
+function nextQuestion() {
+    const foundCities = cities.filter(city => city.found);
+
+    if (foundCities.length < 4) {
+        gameStatus.textContent = 'Je hebt minimaal 4 steden nodig om te spelen';
+        gameStatus.style.color = '#dc3545';
+        return;
+    }
+
+    // Pick a random city as the correct answer
+    const correctCity = foundCities[Math.floor(Math.random() * foundCities.length)];
+
+    // Pick 3 other random cities
+    const otherCities = foundCities.filter(city => city !== correctCity);
+    const shuffled = otherCities.sort(() => 0.5 - Math.random());
+    const wrongCities = shuffled.slice(0, 3);
+
+    // Combine and shuffle all 4 options
+    const allOptions = [correctCity, ...wrongCities].sort(() => 0.5 - Math.random());
+
+    // Store current question
+    currentQuestion = {
+        correctCity: correctCity,
+        options: allOptions,
+        answered: false
+    };
+
+    // Show only the correct city's marker
+    showOnlyMarker(correctCity);
+
+    // Clear status
+    gameStatus.textContent = '';
+
+    // Create answer buttons with random monster images
+    answerButtons.innerHTML = '';
+    const shuffledMonsters = [...monsters].sort(() => 0.5 - Math.random());
+
+    allOptions.forEach((city, index) => {
+        const button = document.createElement('button');
+        button.className = 'answer-btn';
+        button.textContent = city.name;
+
+        // Assign a monster image
+        const monster = shuffledMonsters[index % monsters.length];
+        button.style.backgroundImage = `url('${monster.alive}')`;
+        button.dataset.monsterAlive = monster.alive;
+        button.dataset.monsterDead = monster.dead;
+
+        button.addEventListener('click', () => handleAnswer(city, button));
+        answerButtons.appendChild(button);
+    });
+}
+
+/**
+ * Handle answer selection
+ */
+function handleAnswer(selectedCity, selectedButton) {
+    if (currentQuestion.answered) return;
+
+    currentQuestion.answered = true;
+
+    // Disable all buttons and mark them
+    const buttons = answerButtons.querySelectorAll('.answer-btn');
+    buttons.forEach(button => {
+        button.disabled = true;
+
+        if (button.textContent === currentQuestion.correctCity.name) {
+            button.classList.add('correct');
+            // Change to dead monster image
+            button.style.backgroundImage = `url('${button.dataset.monsterDead}')`;
+        } else {
+            button.classList.add('incorrect');
+        }
+    });
+
+    // Show status
+    if (selectedCity === currentQuestion.correctCity) {
+        gameStatus.textContent = '✅ Correct!';
+        gameStatus.style.color = '#28a745';
+    } else {
+        gameStatus.textContent = `❌ Fout! Het juiste antwoord was ${currentQuestion.correctCity.name}`;
+        gameStatus.style.color = '#dc3545';
+    }
+}
+
+/**
+ * Show only a specific marker on the map
+ */
+function showOnlyMarker(city) {
+    cities.forEach(c => {
+        if (c.marker) {
+            c.marker.setVisible(c === city);
+        }
+        if (c.label) {
+            c.label.hide();
+        }
+    });
+}
+
+/**
+ * Show all markers on the map
+ */
+function showAllMarkers() {
+    cities.forEach(c => {
+        if (c.marker) {
+            c.marker.setVisible(true);
+        }
+    });
 }
 
 /**
