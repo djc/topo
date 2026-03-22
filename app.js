@@ -82,6 +82,8 @@ async function checkForListQuery() {
 
     if (binId) {
         await loadListById(binId);
+    } else {
+        document.querySelector('.controls-section').style.display = '';
     }
 }
 
